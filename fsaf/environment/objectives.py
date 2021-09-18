@@ -27,7 +27,8 @@ def ackley(x_ori):
     x = x_ori.copy()
     x -= 0.5
     x *= 10
-    num = float(len(x[0]))
+    # +-5
+    num = float(len(x[0])) # 200
     y = []
     for n in x:
         firstSum = 0
@@ -36,9 +37,11 @@ def ackley(x_ori):
             firstSum += c**2
             secondSum += np.cos(2.0*np.pi*c)
         y.append(-20.0*np.exp(-0.2*np.sqrt(firstSum/num)) - np.exp(secondSum/num) + 20 + np.e)
-	
+	# 最小會是0
     return -1*(np.array(y)).reshape(-1,1)/10 + 1
-
+    # -1 for min->max
+    # 10 讓值不要太大
+    # +1 讓最大值會到1
 def ackely_max_min(x,dim):
     
     y = ackley(x)
@@ -54,11 +57,13 @@ def ackley_max_min_var(x,dim,t,s):
     return max_pos, s * max, min_pos, None
 
 def ackley_var(x,t,s):
+    # t : 平移
+    # s : scaling
     x_new = x.copy()
-    dim = len(x[0])
+    dim = len(x[0]) # 200 or 2000
     # apply translation
-    t_range = np.array([[0, 1]]*dim)
-    t = np.clip(t, t_range[:, 0], t_range[:, 1])
+    # t_range = np.array([[0, 1]]*dim)
+    # t = np.clip(t, t_range[:, 0], t_range[:, 1])
     x_new = x_new - t
 
     return s * ackley(x_new)
@@ -247,7 +252,7 @@ def Eggholder_var(x,t,s):
     return s * Eggholder(x_new)
 
 # modify from MetaBO
-class SparseSpectrumGP:
+class SparseSpectrumGP: # grnerate GP function
     """
     Implements the sparse spectrum approximation of a GP following the predictive
     entropy search paper.
@@ -349,7 +354,7 @@ def HPO(x, data):
         print((np.where(np.all(x == X, axis=1))[0]))
         exit()
     ret = data["accs"][idx]
-    return np.array(ret).reshape(-1,1)
+    return np.array(ret).reshape(-1,1) #np.array([[0]])
 
 def get_HPO_domain(data):
     return np.array(data["domain"])

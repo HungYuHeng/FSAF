@@ -39,14 +39,14 @@ shot_step = 5
 afs_to_evaluate = ["FSAF", "EI","iclr2020_MetaBO", "PI","MES","GP-UCB"]
 rootdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "fsaf", "log","FSAF-GP-v0")
 logpath = os.path.join(rootdir,args.model)
-f_types = [
+f_types = [ # function type
             "STYBLINSKI_TANG",
             "egg",
             "ackley",
             "GRIEWANK",
             "DIXON_PRICE",
             "POWELL"]
-length_scales = [
+length_scales = [ # 對應的ls
                 [0.175,0.175],
                 [0.034,0.085],
                 [0.07,0.018],
@@ -70,9 +70,9 @@ for idx in range(len(dims)):
         "env_id": "FSAF-{}D{}-v0".format(dims[idx],f_types[idx]),
         "D": dims[idx],
         "f_type": f_types[idx],
-        "f_opts": {
-                "bound_translation":0.1,
-                "bound_scaling":0.1,
+        "f_opts": { # 不一樣的地方
+                "bound_translation":0.1,#水平位移
+                "bound_scaling":0.1, #乘上0.9~1.1之間的數字，固定一個
                 "kernel": kernel,
                 "min_regret": 1e-20,
                 "mix_kernel": False,
@@ -170,7 +170,7 @@ for idx in range(len(dims)):
                         "min_regret": 0,
                         "mix_kernel": False},
                 "features": features,
-                "T": 80,
+                "T": 140,
                 "T_training": T_training,
                 "n_init_samples": n_inits[idx],
                 "pass_X_to_pi": pass_X_to_pi,

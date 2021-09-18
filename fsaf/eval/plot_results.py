@@ -40,6 +40,7 @@ def plot_results(path, logplot=False,name="",limit_y = None):
     env_id = results[0].env_id
 
     # determine best final regret to correct for approximate maxima
+    # 計算regret，Line 87
     R_best = np.ones((results[0].n_episodes,)) * np.inf
     for result in results:
         # prepare rewards_dict

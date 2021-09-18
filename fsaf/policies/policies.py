@@ -30,6 +30,7 @@ class NeuralAF(nn.Module):
 
     def __init__(self, observation_space, action_space, deterministic, options):
         super(NeuralAF, self).__init__()
+        # options : policy_options
         self.N_features = None  # has to be set in init_structure()
         self.deterministic = deterministic
 
@@ -58,8 +59,8 @@ class NeuralAF(nn.Module):
         if "use_value_network" in options and options["use_value_network"]:
             self.use_value_network = True
             self.value_net = MLP(d_in=2, d_out=1, arch_spec=options["arch_spec_value"], f_act=f_act)
-            self.t_idx = options["t_idx"]
-            self.T_idx = options["T_idx"]
+            self.t_idx = options["t_idx"] # -2 # incumbent
+            self.T_idx = options["T_idx"] # -1 # timestep_perc
         else:
             self.use_value_network = False
 
@@ -69,11 +70,12 @@ class NeuralAF(nn.Module):
         logits: (N_batch, poinrs)
         values: (N_batch, )
         '''
+        
         self.para = para
         assert states.dim() == 3
         assert states.shape[-1] == self.N_features
         # policy network
-        logits = self.policy_net.forward(states)
+        logits = self.policy_net.forward(states) # A
         logits.squeeze_(2)
 
         # value network
@@ -84,7 +86,8 @@ class NeuralAF(nn.Module):
         else:
             print("no value")
             exit()
-        logits = logits+values.reshape(-1,1)-logits.mean(dim=1, keepdim=True)
+        # http://proceedings.mlr.press/v48/wangf16.pdf page 5 Eq.(9)
+        logits = logits+values.reshape(-1,1)-logits.mean(dim=1, keepdim=True) # 
         return logits, values
 
     def af(self, state):
@@ -96,10 +99,11 @@ class NeuralAF(nn.Module):
             out = self.forward(state)
         af = out[0].to("cpu").numpy().squeeze()
 
-        return af
+        return af # Q值
     def evalDemo(self, state):
         '''
         get demo policy actions for each state
+        .act : return action from policy
         '''
         if not type(np.array([])) == type(state):
             state = state.cpu().numpy()
@@ -109,7 +113,7 @@ class NeuralAF(nn.Module):
             tmp_act,_ = self.demoPolicy.act(state[i])
             actions = torch.cat((actions,tmp_act.unsqueeze(0)))
             
-        return actions
+        return actions # action for demo policy
     def act(self, state,epsilon=0, demonstration = 1,demoFlag = False):
         '''
         get action, value, af value and whether using demo action
@@ -159,6 +163,7 @@ class NeuralAF(nn.Module):
         return meta_wb
         # return self.policy_net.parameters()
 
+# policy 只講到這
 class iclr2020_NeuralAF(nn.Module):
 
     def __init__(self, observation_space, action_space, deterministic, options):

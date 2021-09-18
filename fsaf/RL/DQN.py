@@ -55,14 +55,14 @@ class DQN:
 
         
 
-        if self.params["ML"]:
+        if self.params["ML"]: # Testing 
             self.pi = policy_fn(observation_space=self.env.observation_space,
                   action_space=self.env.action_space,
                   deterministic=False).to(self.device)
             self.old_pi = policy_fn(observation_space=self.env.observation_space,
                   action_space=self.env.action_space,
                   deterministic=False).to(self.device)
-            if self.params["load"]:
+            if self.params["load"]: # 這一段沒用
                 param = self.params["load_itr"]
                 with open(os.path.join(self.params["load_path"], "weights_" + str(param)), "rb") as f:
                     print("loading weights_{}".format(param))
@@ -70,7 +70,7 @@ class DQN:
                     self.old_pi.load_state_dict(self.pi.state_dict())
                 with open(os.path.join(self.params["load_path"], "theta_" + str(param)), "rb") as f:
                     self.theta = torch.load(f,map_location="cpu")
-            else:
+            else: 
                 param = self.params["load_itr"]
                 with open(os.path.join(logpath, "weights_" + str(param)), "rb") as f:
                     print("loading weights_{}".format(param))
@@ -81,7 +81,7 @@ class DQN:
             self.num_particles = len(self.theta)
             self.theta = self.theta.to(self.device).detach()
 
-        else:
+        else: # Training
             self.pi = policy_fn(self.env.observation_space, self.env.action_space,
                                 deterministic=False).to(self.device)
             self.old_pi = policy_fn(self.env.observation_space, self.env.action_space,
@@ -94,11 +94,11 @@ class DQN:
 
             for _ in range(self.num_particles):
                 theta_flatten = []
-                for key in names_weights_copy.keys():
-                    if len(names_weights_copy[key].shape)>=2:
+                for key in names_weights_copy.keys(): # 複製五份丟進theta
+                    if len(names_weights_copy[key].shape)>=2: 
                         theta_temp = torch.empty(names_weights_copy[key].shape, device=self.device)
                         torch.nn.init.xavier_normal_(tensor=theta_temp)
-                    else:
+                    else: # 應該是不會走這個else
                         theta_temp = torch.zeros(names_weights_copy[key].shape, device=self.device)
                     theta_flatten.append(torch.flatten(theta_temp, start_dim=0, end_dim=-1))
                     
@@ -107,8 +107,8 @@ class DQN:
         self.theta.requires_grad_()
         self.optimizer = torch.optim.Adam([self.theta], lr=self.params["lr"])
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=self.optimizer, 
-                                                              T_max= max_iter,
-                                                              eta_min=self.params["lr"]/100)
+                                                              T_max= max_iter, #1000
+                                                              eta_min=self.params["lr"]/100) # 最小LR
                                                               
         self.total_num_inner_loop_steps = self.params["inner_loop_steps"]
         self.using_chaser = self.params["using_chaser"]
@@ -117,14 +117,14 @@ class DQN:
 
         buffer_size = self.params["buffer_size"]
         prior_alpha = self.params["prior_alpha"]
-        self.outer_w = self.params["outer_w"] if not self.params["ML"] else 0
+        self.outer_w = self.params["outer_w"] if not self.params["ML"] else 0 #沒用到
         self.prior_beta = self.params["prior_beta"]
-        self.n_steps = self.params["n_steps"]
+        self.n_steps = self.params["n_steps"] #TD3
         self.gamma = self.params["gamma"]
         self.buffer = []
         if self.params["ML"]:
             self.buffer.append(CustomPrioritizedReplayBuffer(size=buffer_size,alpha=prior_alpha))
-        else:
+        else: # Training : 9*2
             assert len(self.params["lengthScale"]) == len(self.params["kernels"])
             for _ in range(int(len(self.params["lengthScale"]))):
                 self.buffer.append(CustomPrioritizedReplayBuffer(size=buffer_size,alpha=prior_alpha))
@@ -139,8 +139,8 @@ class DQN:
                                             n_workers=self.params["n_workers"],
                                             buffer= self.buffer,
                                             n_steps=self.n_steps, gamma=self.gamma,metaAdapt=self.params["ML"],
-                                            demo_prob=self.demo_prob)
-
+                                            demo_prob=self.demo_prob) # 收集資料的
+        # 顯示用的
         self.stats = dict()
         self.stats["n_timesteps"] = 0
         self.stats["n_optsteps"] = 0
@@ -162,21 +162,22 @@ class DQN:
         self.step15_reward = 0
         self.step20_reward = 0
         self.step30_reward = 0
-            
-
         self.t_batch = None
-
         self.rew_buffer = collections.deque(maxlen=50)
-
         self.write_overview_logfile()
-    def trainable_parameters(self):
+
+
+
+    def trainable_parameters(self): #沒用到
         """
         Returns an iterator over the trainable parameters of the model.
         """
         for name,param in self.pi.named_parameters():
             if param.requires_grad:
                 yield param
-    def get_inner_loop_parameter_dict(self, params):
+
+
+    def get_inner_loop_parameter_dict(self, params): 
         """
         Returns a dictionary with the parameters to use for inner loop updates.
         :param params: A dictionary of the network's parameters.
@@ -188,12 +189,16 @@ class DQN:
                 param_dict[name] = param.to(device=self.device)
 
         return param_dict
+
+
+
     def set_all_seeds(self):
         self.rng = np.random.RandomState(seed=self.params["seed"])
         np.random.seed(self.params["seed"])
         random.seed(self.params["seed"])
         torch.manual_seed(self.params["seed"])
         torch.cuda.manual_seed_all(self.params["seed"])
+
 
     def write_overview_logfile(self):
         s = ""
@@ -226,8 +231,10 @@ class DQN:
         with torch.no_grad():
             while(self.params["batch_size"] > len(self.buffer[index])):
                 self.sampling_data(index=index)
-            states_ori, actions_ori, rewards_ori, next_states_ori, dones_ori, weights_ori, idxes = self.buffer[index].sample(self.params["batch_size"], self.prior_beta)
 
+            states_ori, actions_ori, rewards_ori, next_states_ori, dones_ori, weights_ori, idxes = self.buffer[index].sample(self.params["batch_size"], self.prior_beta)
+            # weights_ori : prioritized  replay buffer
+            # idxes: prioritized  replay buffer
             states = torch.FloatTensor(states_ori).to(self.device)
             actions = torch.LongTensor(actions_ori).to(self.device)
             rewards = torch.FloatTensor(rewards_ori).to(self.device)
@@ -238,20 +245,20 @@ class DQN:
 
             q_values, _ = self.pi(states)
             next_q_values, _ = self.pi(next_states)
-            tgt_next_q_values, _ = self.old_pi(next_states)
+            tgt_next_q_values, _ = self.old_pi(next_states) # old pi = target
 
             q_a_values = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
-            next_actions = next_q_values.max(1)[1].unsqueeze(1)
+            next_actions = next_q_values.max(1)[1].unsqueeze(1) # 128*200 ??
             next_q_a_values = tgt_next_q_values.gather(1, next_actions).squeeze(1)
-            expected_q_a_values = rewards + (self.gamma ** self.n_steps) * next_q_a_values * (1 - dones)
+            expected_q_a_values = rewards + (self.gamma ** self.n_steps) * next_q_a_values * (1 - dones) # target Q ，不會更新
 
-            td_error = torch.abs(expected_q_a_values.detach() - q_a_values)
+            td_error = torch.abs(expected_q_a_values.detach() - q_a_values) 
             prios = (0.9*torch.max(td_error)+0.1*td_error + 1e-6).cpu().numpy()
             
             self.buffer[index].update_priorities(idxes, prios)
         
         
-        if(usingDemo and not self.params["ML"]):
+        if(usingDemo and not self.params["ML"]): #1/128 ，共256個data
             # print("is demo")
             with torch.no_grad():
                 states_demo, actions_demo, rewards_demo, next_states_demo, dones_demo, weights_demo, idxes_demo = self.buffer[index+1].sample(self.params["batch_size"], self.prior_beta)
@@ -286,8 +293,8 @@ class DQN:
 
                 
 
-                states = torch.FloatTensor(states).to(self.device)
-                actions = torch.LongTensor(actions).to(self.device)
+                states = torch.FloatTensor(states).to(self.device) # 200
+                actions = torch.LongTensor(actions).to(self.device) # 1
                 rewards = torch.FloatTensor(rewards).to(self.device)
                 next_states = torch.FloatTensor(next_states).to(self.device)
                 dones = torch.FloatTensor(dones).to(self.device)
@@ -307,7 +314,7 @@ class DQN:
         demo_actions = (self.pi.evalDemo(states)).to(self.device)
         dist = Categorical(logits=q_values)
         loss = -torch.sum(dist.log_prob(demo_actions)) + (torch.where(td_error < 1, 0.5 * td_error ** 2, td_error - 0.5)).mean()
-
+        # (2) , demo_actions = D'
         t_optim = time.time() - now
 
         return t_optim, loss
@@ -320,7 +327,10 @@ class DQN:
         index:replay buffer index
         record:whether to record the log
         '''
+
         t_batch = self.batch_recorder.record_batch(gamma=self.params["gamma"],index=index)
+
+        #以下顯示用
         self.stats["t_train"] += t_batch
         batch_stats = self.batch_recorder.get_batch_stats()
         self.sampling_cnt += 1
@@ -364,6 +374,7 @@ class DQN:
         retrun:covariance matrix and kernel gradient
         '''
 
+        # https://github.com/jsikyoon/bmaml/blob/master/bmaml.py
         e_dists = torch.nn.functional.pdist(input=particle_tensor, p=2).to(self.device)
         d_matrix = torch.zeros((self.num_particles, self.num_particles), device=self.device)
 
@@ -381,7 +392,7 @@ class DQN:
         grad_kernel = -torch.matmul(kernel_matrix, particle_tensor)
         grad_kernel += particle_tensor * kernel_sum
         grad_kernel /= h
-        if self.num_particles == 1:
+        if self.num_particles == 1: 
             kernel_matrix = torch.eye(1,device=self.device)
             grad_kernel = 0
             h = 0
@@ -399,7 +410,11 @@ class DQN:
                 d2tensor.append(tensor_temp)
             d2tensor = torch.cat(d2tensor)
             return d2tensor
+
+
+
         def get_weights_target_net(w_generated, row_id, w_target_shape):
+            # 五組parameter
             w = {}
             if type(w_generated) is torch.Tensor:
                 temp = 0
@@ -417,6 +432,8 @@ class DQN:
             return w
         
         if "kernels" in self.params:
+            # When training multi kernels
+
             kernels =  self.params["kernels"]
             lengthScale = self.params["lengthScale"]
             task_num = len(lengthScale)
@@ -425,15 +442,21 @@ class DQN:
             for i in range(len(lengthScale)):
                 tasks.append([kernels[i],lengthScale[i]])
             task_size = self.params["task_size"]
-        else:
+        else: 
+            # kernel only 1
             task_num = 1
             task_size = 1
-        while self.stats["n_timesteps"] < self.params["max_steps"]:
-            self.stats["n_timesteps"] += self.params["batch_size"]
+
+
+        while self.stats["n_timesteps"] < self.params["max_steps"]: # < 1000*128，會跑1000次
+            self.stats["n_timesteps"] += self.params["batch_size"] 
             total_losses = []
             self.iter_log_str = ""
+
+            # Update targer
             if self.stats["n_optsteps"] % self.params["target_update_interval"] == 0:
                 self.old_pi.load_state_dict(self.pi.state_dict())
+
             loss_final = 0
             if "kernels" in self.params: # only on training
                 task_idx = 0
@@ -442,18 +465,24 @@ class DQN:
                         self.batch_recorder.switch_task(kernel=k,lengthScale=l)
                         self.sampling_data(index=task_idx*2)
                     task_idx += 1
+            # 隨機抽3個[kernel landscale]組合
             random_task = self.rng.choice(np.arange(task_num),size=task_size,replace=False)
             
+            # Line 4
             for i,r_task in enumerate(random_task):
                 if "kernels" in self.params: # only on training
                     self.batch_recorder.switch_task(kernel=tasks[r_task][0],lengthScale=tasks[r_task][1])
                     # print(tasks[r_task][0],tasks[r_task][1])
                 chaser_loss = 0
                 distance_NLL = []
-                for particle_id in range(self.num_particles):
+
+
+                # Line 7,8,9.10
+                for particle_id in range(self.num_particles): #5 = N (7)
                     
                     names_weights_copy = self.get_inner_loop_parameter_dict(self.pi.named_parameters())
                     w = get_weights_target_net(w_generated=self.theta, row_id=particle_id, w_target_shape=names_weights_copy)
+                    # 抽一個theta塞進eval nn
                     with torch.no_grad():
                         for name,p in self.pi.named_parameters():
                             p.data.copy_(w[name])
@@ -465,13 +494,19 @@ class DQN:
                         inputs=self.pi.parameters(),
                         create_graph=False if not self.params["ML"] else False
                     )
+                    # 存 Gradient
                     names_weights_copy = self.get_inner_loop_parameter_dict(self.pi.named_parameters())
                     loss_NLL_gradients_dict = dict(zip(names_weights_copy.keys(), loss_NLL_grads))
                     loss_NLL_gradients = dict2tensor(dict_obj=loss_NLL_gradients_dict)
                     distance_NLL.append(loss_NLL_gradients)
+
+                # Finist (7) left part.
                 distance_NLL = torch.stack(distance_NLL)
+                # Finist (7) right part.
                 kernel_matrix, grad_kernel, _ = self.kernel(particle_tensor=self.theta)
 
+
+                # Line 10
                 if not self.params["ML"]:
                     q = self.theta - self.params["inner_lr"] * (torch.matmul(kernel_matrix, distance_NLL) - grad_kernel)/len(names_weights_copy)
                 else:
@@ -502,12 +537,21 @@ class DQN:
                     distance_NLL = torch.stack(distance_NLL)
                     kernel_matrix, grad_kernel, _ = self.kernel(particle_tensor=q)
 
+
+                # Line 10 (包含S)
                     q = q - self.params["inner_lr"] * (torch.matmul(kernel_matrix, distance_NLL) - grad_kernel)/len(names_weights_copy)
                 
+
+                # Line 18
                 if not self.params["ML"]:
+
+                    # 前三行不會用到
                     t_weights = self.batch_recorder.set_worker_weights(copy.deepcopy(self.pi),theta=q.detach().cpu())
                     self.sampling_data(index=r_task*2,record=(i+1) >= task_size)
                     t_optim, loss = self.optimize_on_batch(index=r_task*2)
+
+
+                    # Page (9)
                     if self.using_chaser:
                         for j in range(self.num_particles):
                             w_old = get_weights_target_net(w_generated=self.theta, row_id=j, w_target_shape=names_weights_copy)
@@ -517,7 +561,7 @@ class DQN:
                                 vec = parameters_to_vector(paramsvec)
                                 vec_true = parameters_to_vector(paramsvec_true).detach()
                                 chaser_loss = chaser_loss + torch.dot((vec - vec_true),(vec - vec_true) )#.clamp(-1e3,1e3)
-                    else:
+                    else: 
                         loss_final += loss
 
             

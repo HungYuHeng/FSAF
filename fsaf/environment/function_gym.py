@@ -12,6 +12,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+
+# AF對x的順序沒差
+
 import gym
 import gym.spaces
 import numpy as np
@@ -37,7 +40,7 @@ class FSAF(gym.Env):
         
         self.kwargs = kwargs
         
-        self.general_setting(self.kwargs["D"])
+        self.general_setting(self.kwargs["D"]) # Dim
 
 
     def general_setting(self,D):
@@ -47,7 +50,7 @@ class FSAF(gym.Env):
         
 
         # the domain (unit hypercube)
-        self.domain = np.stack([np.zeros(self.D, ), np.ones(self.D, )], axis=1)
+        self.domain = np.stack([np.zeros(self.D, ), np.ones(self.D, )], axis=1) # [0,1]
 
         # optimization horizon
         self.T = None  # will be set in self.reset
@@ -67,10 +70,10 @@ class FSAF(gym.Env):
 
         # the AF and its optimization
         self.af = None
-        self.neg_af_and_d_neg_af_d_state = None
+        self.neg_af_and_d_neg_af_d_state = None # no use
         self.do_local_af_opt = self.kwargs["local_af_opt"]
-        if self.do_local_af_opt:
-            self.N_S = self.kwargs["N_S"]
+        if self.do_local_af_opt: # 是否有走而外的點
+            self.N_S = self.kwargs["N_S"] # 2000
             self.discrete_domain = False
 
             # prepare xi_t
@@ -78,21 +81,21 @@ class FSAF(gym.Env):
             self.xi_init = None
             self.af_opt_startpoints_t = None  # best k evaluations of af on multistart_grid
             self.af_maxima_t = None  # the resulting local af_maxima
-            self.N_MS = self.kwargs["N_MS"]
-            N_MS_per_dim = np.int(np.floor(self.N_MS ** (1 / self.D)))
+            self.N_MS = self.kwargs["N_MS"] # 10000
+            N_MS_per_dim = np.int(np.floor(self.N_MS ** (1 / self.D))) # 1
             # self.multistart_grid, _ = create_uniform_grid(self.domain, N_MS_per_dim)
             self.multistart_grid = sobol_seq.i4_sobol_generate(self.D, self.N_MS)  
 
-            self.N_MS = self.multistart_grid.shape[0]
+            self.N_MS = self.multistart_grid.shape[0] #??
             self.k = self.kwargs["k"]  # number of multistarts
-            self.cardinality_xi_local_t = self.k
+            self.cardinality_xi_local_t = self.k 
             self.cardinality_xi_global_t = self.N_S#self.N_MS
 
-            self.cardinality_xi_t = self.cardinality_xi_local_t + self.cardinality_xi_global_t
+            self.cardinality_xi_t = self.cardinality_xi_local_t + self.cardinality_xi_global_t # 可以走的點: 10 + 2000
 
             # hierarchical gridding or gradient-based optimization?
             self.N_LS = self.kwargs["N_LS"]
-            self.local_search_grid = sobol_seq.i4_sobol_generate(self.D, self.N_LS)
+            self.local_search_grid = sobol_seq.i4_sobol_generate(self.D, self.N_LS) # D維vertor N_LS個
             self.af_max_search_diam = 2 * 1 / N_MS_per_dim
         else:
             self.discrete_domain = True
@@ -107,7 +110,7 @@ class FSAF(gym.Env):
 
         # the features
         self.features = self.kwargs["features"]
-        self.feature_order_eval_envs = ["posterior_mean", "posterior_std", "incumbent", "timestep_perc"]
+        self.feature_order_eval_envs = ["posterior_mean", "posterior_std", "incumbent", "timestep_perc"] # no use
 
         # observation space
         self.n_features = 0
@@ -159,6 +162,7 @@ class FSAF(gym.Env):
         # the surrogate GP
         self.mf = None
         self.gp = None
+        # 以下 no use
         self.kernel_variance = self.kwargs["kernel_variance"]
         self.kernel_lengthscale = np.array(self.kwargs["kernel_lengthscale"])
         self.noise_variance = self.kwargs["noise_variance"]
@@ -185,8 +189,8 @@ class FSAF(gym.Env):
         if self.reward_transformation == "cumulative":
             self.cumulative_reward = 0
         if self.do_local_af_opt and not self.f_type == "HPO":
-            choice_indices = self.rng.choice(len(self.multistart_grid), self.N_S, replace=False)
-            self.xi_init = np.array([self.multistart_grid[i] for i in choice_indices])
+            choice_indices = self.rng.choice(len(self.multistart_grid), self.N_S, replace=False) # 抽 2000
+            self.xi_init = np.array([self.multistart_grid[i] for i in choice_indices]) # 10000個點選2000
 
         # draw a new function from self.f_type
         self.draw_new_function()
@@ -208,14 +212,15 @@ class FSAF(gym.Env):
         else:
             assert self.t == self.Y.size - self.n_init_samples
 
-        x_action = self.convert_idx_to_x(action)
-        self.add_data(x_action)  # do this BEFORE calling get_reward()
+        x_action = self.convert_idx_to_x(action) # 87 -> x domain
+        self.add_data(x_action)  # do this BEFORE calling get_reward() 
         reward = self.get_reward(x_action)
         self.update_gp()  # do this AFTER calling get_reward()
         self.optimize_AF()
         next_state = self.get_state(self.xi_t)
         # early stop while training
         done = self.is_terminal() or ((self.t >= 30 and np.min(self.y_max-self.Y) < self.f_opts["min_regret"])and "T_max" in self.kwargs and self.f_type == "GP")
+        # 後面只有training才有，代表以精彩的夠好
         return next_state, reward, done, {}
 
     def reset_step_counters(self):
@@ -230,7 +235,7 @@ class FSAF(gym.Env):
     def close(self):
         pass
 
-    def draw_new_function(self):
+    def draw_new_function(self): #生成新function
         if "metaTrainShot" in self.f_opts:
             if 1 > len(self.shot_funcs):
                 pass
@@ -258,9 +263,11 @@ class FSAF(gym.Env):
             ssgp = SparseSpectrumGP(seed=seed, input_dim=self.D, noise_var=noise_var, 
                                     length_scale=lengthscale,
                                     signal_var=signal_var, n_features=n_features, kernel=kernel,periods=self.f_opts["periods"])
+            # 這三行不知道要幹嘛
             x_train = np.array([]).reshape(0, self.D)
             y_train = np.array([]).reshape(0, 1)
             ssgp.train(x_train, y_train, n_samples=1)
+
             self.f = lambda x: ssgp.sample_posterior_handle(x).reshape(-1, 1)
 
             # load gp-hyperparameters
@@ -269,9 +276,9 @@ class FSAF(gym.Env):
             self.noise_variance = 8.9e-16
 
             if self.do_local_af_opt:
-                x_vec = self.xi_init
+                x_vec = self.xi_init # 10000抽2000
             else:
-                x_vec = self.xi_t
+                x_vec = self.xi_t # sobolsquence 2000 
             y_vec = self.f(x_vec)
             self.x_max = x_vec[np.argmax(y_vec)].reshape(1, self.D)
             self.y_max = np.max(y_vec)
@@ -283,6 +290,7 @@ class FSAF(gym.Env):
                     # sample translation
                     t = self.rng.uniform(low=-self.f_opts["bound_translation"],
                                          high=self.f_opts["bound_translation"], size=(1, self.D))
+                    #+-01抽一個
 
                     # sample scaling
                     s = self.rng.uniform(low=1 - self.f_opts["bound_scaling"], high=1 + self.f_opts["bound_scaling"])
@@ -391,7 +399,7 @@ class FSAF(gym.Env):
                 if self.dataset_counter >= len(self.kwargs["f_opts"]["data"]):
                     self.dataset_counter = 0
 
-            
+            #dataset_counter 0-47
             self.pkl_data = pickle.load(open(self.kwargs["f_opts"]["data"][self.dataset_counter],"rb"))
             
 
@@ -431,6 +439,7 @@ class FSAF(gym.Env):
                                 variance=self.kernel_variance,
                                 lengthscale=self.kernel_lengthscale,
                                 ARD=True)
+        # 沒用到
         elif "kernel" in self.f_opts and "ExpSS" in self.f_opts["kernel"]:
             self.kernel = GPy.kern.StdPeriodic(input_dim=self.D,
                                     variance=self.kernel_variance,
@@ -443,6 +452,7 @@ class FSAF(gym.Env):
                                 lengthscale=self.kernel_lengthscale,
                                 ARD=True)
 
+        # 沒用到use_prior_mean_function
         if self.use_prior_mean_function:
             self.mf = GPy.core.Mapping(self.D, 1)
             self.mf.f = lambda X: np.mean(self.Y, axis=0)[0] if self.Y is not None else 0.0
@@ -497,15 +507,16 @@ class FSAF(gym.Env):
         self.gp_is_empty = False
 
     def optimize_AF(self):
-        if self.do_local_af_opt:
+        if self.do_local_af_opt: # 要走而外的點
             # obtain maxima of af
             self.get_af_maxima()
-            self.xi_t = np.concatenate((self.af_maxima_t, self.xi_init), axis=0)
+            self.xi_t = np.concatenate((self.af_maxima_t, self.xi_init), axis=0) # 多10個點
             assert self.xi_t.shape[0] == self.cardinality_xi_t
         else:
             pass
 
     def get_state(self, X):
+
         # fill the state
         self.rng.shuffle(X)
         feature_count = 0
@@ -682,3 +693,4 @@ class FSAF(gym.Env):
 
     def is_terminal(self):
         return self.t == self.T
+

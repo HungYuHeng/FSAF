@@ -51,6 +51,7 @@ logpath = os.path.join(rootdir,args.model)
 dims = [3,5,3,5,3,5,3,5]
 kernels = ["Matern32","Matern32","RBF","RBF","SM","SM","SM","SM"]
 periods = [[None]]*4+[[0.3,0.6,0.9]]*2+[[0.2,0.4,0.8]]*2
+# SM 有兩個是因為還有這個週期設定
 idx = -1
 for kernel, dim in zip(kernels, dims):
     idx += 1
@@ -69,6 +70,7 @@ for kernel, dim in zip(kernels, dims):
                 "periods":period,
                 "lengthscale_low": args.ls_low,
                 "lengthscale_high": args.ls_high,
+                # for gp
                 "noise_var_low": 0.1,
                 "noise_var_high": 0.1,
                 "signal_var_low": 1.0,
@@ -100,7 +102,8 @@ for kernel, dim in zip(kernels, dims):
     MetaBO_transfer_iter = 100
     MetaBO_transfer(env_spec = env_spec_ppo,iter=MetaBO_transfer_iter)
     n_workers = 10
-    n_episodes = 100
+    # eval 多少 eps
+    n_episodes = 100 # eps % worker == 0
     savepath = os.path.join(shot_path, "eval", datetime.strftime(datetime.now(), "%Y-%m-%d-%H-%M-%Sdet={}".format(det)))
 
     test_iters = [0,5]
@@ -180,11 +183,12 @@ for kernel, dim in zip(kernels, dims):
                 "kernel_variance": None,
                 "noise_variance": None,
                 "use_prior_mean_function": False,
-                "local_af_opt": True,
-                    "N_MS": 10000,
-                    "N_S":2000,
-                    "N_LS": 1000,
-                    "k": 10,
+                "local_af_opt": True, # 會走而外的點(跟HPO data不同)
+                    "N_MS": 10000, # 10000個固定點
+                    "N_S":2000, #隨機抽2000個點
+                    "N_LS": 1000, #ac 給的點周圍再1000個點，不再10000個點內
+                    "k": 10, 
+                    # get_af_maxia in function_gym
                 "reward_transformation": "none",
             }
 

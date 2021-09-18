@@ -14,7 +14,7 @@
 
 # model that in log file
 # args -is (number of initial sample), -det(using max function), -cuda(device id)
-model_name="FSAF"
+model_name="FSAF" # \FSAF\fsaf\log\FSAF-GP-v0\FSAF
 cuda_id=0
 
 # optimization benchmark functions
@@ -27,7 +27,13 @@ python evaluate_fsaf_gps.py -m ${model_name} -lsH 0.55 -lsL 0.5 -det True -cuda 
 # # HPO
 # # args -ls(GP model length scales for each dimension)
 python evaluate_fsaf_hpo.py -m ${model_name} -d "hpobenchXGB" -dl 48 -dim 6 -cuda ${cuda_id} -det 1 -is 15 -ls 11.870 0.787 6.060 10.142 11.142 10.255
-
+# -d + \FSAF\HPO_data\*_數字.pkl 
+# -dl 總共多少pkl
+# -dim 要調整para的dim
+# cuda_id gpu id
+# -det 1 dqn用max去找 永遠是1
+# -is initial sample 
+# -ls landscale
 python evaluate_fsaf_hpo.py -m ${model_name} -d "pm25" -dl 30 -dim 14 -cuda ${cuda_id} -det 1 -is 15 -ls 14.358 12.487 0.707 11.774 24.295 15.115 26.688 21.721 16.819 18.163 22.959 26.496 14.655 11.758
 
 python evaluate_fsaf_hpo.py -m ${model_name} -d "augment" -dl 40 -dim 12 -cuda ${cuda_id} -det 1 -is 15 -ls 7.779 5.257 6.115 6.889 8.600 5.782 9.606 9.454 0.772 1.013 1.686 1.652

@@ -45,7 +45,7 @@ parser.add_argument("-ls", "--lengthScale",type=float, nargs="+",default=[1],
 args = parser.parse_args()
 
 # set evaluation parameters
-shot_step = 5
+shot_step = 5 # flew shot ， 餅僅說問老師，要經過幾次update
 afs_to_evaluate = ["FSAF", "EI", "PI","MES","GP-UCB","iclr2020_MetaBO"]
 rootdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "fsaf", "log","FSAF-GP-v0")
 logpath = os.path.join(rootdir,args.model)
@@ -64,26 +64,28 @@ env_spec = {
     "D": dim,  # FSAF is dimensionality agnostic and can be evaluated for any D
     "f_type": "HPO",
     "f_opts": {
-        "adapting":True,
-        "min_regret": 1e-20,
-        "data":["HPO_data/{}_0.pkl".format(args.data)]},
+        "adapting":True, # for flew shot
+        "min_regret": 1e-20, 
+        "data":["HPO_data/{}_0.pkl".format(args.data)]}, # 隨機打亂，選哪個沒差
     "features": features,
-    "T": 50,
-    "T_training": None,
-    "n_init_samples": args.init_sample,
+    "T": 50, # 一次採要多少 # 1個eps幾個step
+    "T_training": None, #可刪
+    "n_init_samples": args.init_sample, #15 & 5 & 10
     "pass_X_to_pi": False,
     # will be set individually for each new function to the sampled hyperparameters
     "kernel": kernel,
     "kernel_lengthscale": args.lengthScale,
     "kernel_variance": 1,
-    "noise_variance": 0.1,
-    "use_prior_mean_function": False,
-    "local_af_opt": False,
-    "cardinality_domain": 1,
-    "reward_transformation": "neg_log10",
+    "noise_variance": 0.1, # for gp
+    "use_prior_mean_function": False, 
+    "local_af_opt": False, # 在所有hpo的tesh都是f，不會走到2000個點以外的
+    "cardinality_domain": 1, # 總共多少點，之後會從pkl讀
+    "reward_transformation": "neg_log10", #linear or ???
 }
+# for iclr2020_MetaBO
 env_spec_ppo = copy.deepcopy(env_spec)
 env_spec_ppo["features"] = ["posterior_mean", "posterior_std", "incumbent", "timestep_perc", "timestep","budget"]
+# few shot
 metaAdapt(best_iter=best_iter,iter=shot_step, dim=dim, kernel=kernel,shot=1,logpath=logpath,shot_path=shot_path,env_spec=env_spec)
 os.makedirs(shot_path, exist_ok=True)
 shutil.copy("{}/weights_{}".format(logpath,best_iter),"{}/weights_{}".format(shot_path,best_iter))
@@ -93,12 +95,12 @@ shutil.copy("{}/theta_{}".format(logpath,best_iter),"{}/theta_{}".format(shot_pa
 MetaBO_transfer_iter = 100
 MetaBO_transfer(env_spec = env_spec_ppo,iter=MetaBO_transfer_iter)
 
-n_workers = 1
+n_workers = 1 #只能是1
 datas = ["HPO_data/{}_{}.pkl".format(args.data,i) for i in range(1,args.dataLen)]
 n_episodes = len(datas)
 savepath = os.path.join(shot_path, "eval", datetime.strftime(datetime.now(), "%Y-%m-%d-%H-%M-%Sdet={}".format(args.deterministic)))
 
-test_iters = [0,5]
+test_iters = [0,5] # 0->710th update and 5 update by HPO_data
 
 for li in test_iters:
     # evaluate all afs
@@ -110,7 +112,7 @@ for li in test_iters:
             if li == 0:
                 load_iter = best_iter
             else:
-                load_iter = li-1 
+                load_iter = li-1 # 0 1 2 3 "4"
             T_training = None
             deterministic = args.deterministic
             policy_specs = {}  # will be loaded from the logfiles
@@ -122,6 +124,7 @@ for li in test_iters:
                 load_iter = 1200
             else:
                 load_iter = get_best_iter_idx_reward("iclr2020_weight/{}".format(env_spec["env_id"]),MetaBO_transfer_iter-1,init_iter=1)
+                # transfer learning
             deterministic = False
             policy_specs = {}  # will be loaded from the logfiles
         elif af == "MES":
@@ -155,11 +158,11 @@ for li in test_iters:
             "f_type": "HPO",
             "f_opts": {
                 # "gp":"GPytorch",
-                "adapting":False,
+                "adapting":False, #
                 "min_regret": 0,
-                "data":datas},
+                "data":datas}, #
             "features": features,
-            "T": 140,
+            "T": 140, #
             "T_training": T_training,
             "n_init_samples": args.init_sample,
             "pass_X_to_pi": pass_X_to_pi,

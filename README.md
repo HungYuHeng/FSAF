@@ -18,6 +18,6 @@ We tested this code on the following versions of libraries:
 - matplotlib 3.1.3
 
 # Refernece
-- https://arxiv.org/pdf/2106.04335.pdf
+
 - https://github.com/metabo-iclr2020/MetaBO
 

@@ -52,13 +52,13 @@ class EnvRunner(mp.Process):
         self.pi = policy_fn(self.env.observation_space, self.env.action_space, deterministic)
         self.deterministic = deterministic
         self.pi.set_requires_grad(False)  # we need no gradients here
-        self.theta = None
-        self.latent = None
-        self.par_num = None
+        self.theta = None # para
+        self.latent = None # no use
+        self.par_num = None  # no use 
 
         # connect policy and environment
         self.env.unwrapped.set_af_functions(af_fun=self.pi.af)
-
+        # unwrapped : set default 以外的function  
         # empty batch recorder
         assert size > 0
         self.size = size
@@ -100,9 +100,13 @@ class EnvRunner(mp.Process):
         torch.cuda.manual_seed_all(self.seed)
 
     def push(self, state, action, reward, value, new, q_values):
+        # new : 是否是第一個step
+        # q_values : af值
+
         self.storage.add(state, reward, action, new, q_values.reshape(-1))
         self.reward_sum += reward
         self.n_new += int(new)
+    #接下來這兩個func抓para用的
     def get_weights_target_net(self,w_generated, row_id, w_target_shape):
         w = {}
         temp = 0
@@ -144,13 +148,14 @@ class EnvRunner(mp.Process):
                 if demoFlag:
                     action, value, acqu, demo = self.act(state,demoFlag)
                 else:
-                    ## if using single particle
+                    ## if using single particle # 最常走
                     if type(self.theta) == type(None):
                         action, value, acqu, demo = self.act(state)
                     else:
                         logits = []
                         values = 0
                         num_particles = len(self.theta)
+                        # particle nn數量
                         for particle_id in range(num_particles):
                             names_weights_copy = self.get_inner_loop_parameter_dict(self.pi.named_parameters())
                             w = self.get_weights_target_net(w_generated=self.theta, row_id=particle_id, w_target_shape=names_weights_copy)
@@ -159,6 +164,7 @@ class EnvRunner(mp.Process):
                                     for name,p in self.pi.named_parameters():
                                         p.data.copy_(w[name])
                             else:
+                                # else沒用到
                                 index = 0
                                 with torch.no_grad():
                                     for name,p in self.pi.named_parameters():
@@ -173,8 +179,8 @@ class EnvRunner(mp.Process):
                             _, value, acqu, demo = self.act(state)
                             logits.append(acqu[0])
                             values += (value)
-                        logits = torch.mean(torch.stack(logits), dim=0, keepdim=True)
-                        values = values / num_particles
+                        logits = torch.mean(torch.stack(logits), dim=0, keepdim=True) # 很多個partical取ｍean
+                        values = values / num_particles # 很多個partical取ｍean
                         if np.random.rand() > self.epsilon:
                             action = torch.argmax(logits)
                             action = action.squeeze(0).numpy()
@@ -182,12 +188,13 @@ class EnvRunner(mp.Process):
                             action = np.random.choice(np.arange(logits.reshape(-1).shape[0]))
                         
                 self.env.unwrapped.setAcqu(acqu)
-            else:
+            else: # 其他AF
                 action, value = self.act(state)
                 acqu = None
             
             next_state, reward, done, _ = self.env.step(action)
             self.step_counter += 1
+            # log reward轉回regret
             if self.step_counter == 15:
                 self.reward15.append(-10**(-reward))
             if self.step_counter == 20:
@@ -300,7 +307,7 @@ class BatchRecorder():
                 n_steps=1, gamma=0.99, deterministic=False,metaAdapt=False,demo_prob=1/256):
         self.env_id = env_id
         self.deterministic = deterministic
-        self.metaAdapt =metaAdapt
+        self.metaAdapt =metaAdapt # 換dataset時薪跑的training，此時不會有Demo policy
 
         self.buffer = buffer
 
@@ -315,9 +322,10 @@ class BatchRecorder():
         self.env_seeds = env_seeds
         self.task_queue = mp.JoinableQueue()
         self.res_queue = mp.Queue()
-        self.worker_batch_sizes = [self.size // self.n_workers] * self.n_workers
+        self.worker_batch_sizes = [self.size // self.n_workers] * self.n_workers # 沒屁用
         self.workers = []
         NW = self.n_workers+1 if not self.metaAdapt else self.n_workers
+        # + 1 for demo
         for i in range(NW):
             if i == self.n_workers:
                 # a worker always collect expert data
@@ -340,6 +348,7 @@ class BatchRecorder():
             worker.start()
 
     def clear(self):
+        # 以後看不懂找餅僅
         self.cur_size = self.size
         self.worker_sizes = [0 for _ in range(self.n_workers)]
         self.memory = []
@@ -348,7 +357,7 @@ class BatchRecorder():
         self.worker_reward_sums = [0 for _ in range(self.n_workers)]
         self.n_new = 0
         self.worker_n_news = [0 for _ in range(self.n_workers)]
-        self.reward15 = []
+        self.reward15 = [] # T : total steps
         self.reward20 = []
         self.reward30 = []
         self.initial_rewards = []

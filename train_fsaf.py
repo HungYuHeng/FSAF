@@ -37,18 +37,18 @@ env_spec = {
                 "kernel": kernel,
                "lengthscale_low": 0.05,
                "lengthscale_high": 0.6,
-               "noise_var_low": 0.1,
-               "noise_var_high": 0.1,
-               "signal_var_low": 1.0,
-               "signal_var_high": 1.0,
+               "noise_var_low": 0.1, # 這裡怪怪的
+               "noise_var_high": 0.1, 
+               "signal_var_low": 1.0, 
+               "signal_var_high": 1.0, 
                "min_regret": 1e-20,
                "mix_kernel": True,
                "periods":[0.3,0.6],
                "kernel_list" : kernels,
-               "inner_loop_steps" : inner_loop_steps},
-    "features": ["posterior_mean", "posterior_std", "incumbent", "timestep_perc"],
+               "inner_loop_steps" : inner_loop_steps}, # K
+    "features": ["posterior_mean", "posterior_std", "incumbent", "timestep_perc"], # "incumbent", "timestep_perc" 
     "T_min": 30,
-    "T_max": 100,
+    "T_max": 100, # Line 7,8 長度100
     "n_init_samples": 0,
     "pass_X_to_pi": False,
     # will be set individually for each new function to the sampled hyperparameters
@@ -57,7 +57,7 @@ env_spec = {
     "kernel_variance": None,
     "noise_variance": None,
     "use_prior_mean_function": False,
-    "local_af_opt": False,
+    "local_af_opt": False, # 會不會走出這200的點
     "cardinality_domain": 200,
     "reward_transformation": "neg_log10"  # true maximum not known
 }
@@ -66,41 +66,41 @@ env_spec = {
 n_iterations = 1000
 batch_size = 128
 n_workers = 5
-arch_spec = 4 * [200]
-num_particles = 5
-dqn_spec = {
+arch_spec = 4 * [200] # 4 200 200 200 200 1
+num_particles = 5 # 五個NN，用不同Loss
+dqn_spec = { # DQN.py 用到
     "batch_size": batch_size,
     "max_steps": n_iterations * batch_size,
-    "lr": 1e-3,
-    "inner_lr":1e-2,
-    "gamma": 0.98,
-    "buffer_size":1e3,
-    "prior_alpha":0.3,
-    "prior_beta":0.6,
-    "outer_w":0.01,
-    "n_steps":3,
-    "task_size":3,
-    "max_norm":40,
-    "target_update_interval":5,
-    "n_workers": n_workers,
+    "lr": 1e-3, # Line 18
+    "inner_lr":1e-2, # Line 10, 15
+    "gamma": 0.98, # discount factor
+    "buffer_size":1e3, # replay buffer
+    "prior_alpha":0.3, # prioritized  replay buffer
+    "prior_beta":0.6, # prioritized  replay buffer 
+    "outer_w":0.01, # 沒用到
+    "n_steps":3, # TD3
+    "task_size":3, # 9 個抽三個
+    "max_norm":40, # max gradient = 40
+    "target_update_interval":5, # Target nn update frequency
+    "n_workers": n_workers, 
     "env_id": env_spec["env_id"],
     "seed": 0,
     "env_seeds": list(range(n_workers)),
     "policy_options": {
         "activations": "relu",
-        "arch_spec": arch_spec,
+        "arch_spec": arch_spec, 
         "use_value_network": True,
-        "t_idx": -2,
+        "t_idx": -2, # "incumbent(目前最好點的y值)", "timestep_perc(第87步=0.87)"
         "T_idx": -1,
         "arch_spec_value": arch_spec,
     },
     "kernels" : kernels,
     "lengthScale" : lengthScale,
     "num_particles" : num_particles,
-    "ML" : False,
+    "ML" : False, # Testing 前要做的更新
     "inner_loop_steps":inner_loop_steps,
-    "using_chaser":True,
-    "demo_prob" : 1/128,
+    "using_chaser":True, # Line 18
+    "demo_prob" : 1/128, # Page 15, Demo replay 上的機率，
 
 }
 
